@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Transform: "AWS::Serverless-2016-10-31"
+
+Resources:
+  Api:
+    Type: "AWS::Serverless::Api"
+    Properties:
+      BinaryMediaTypes:
+        - "*~1*"
+      DefinitionBody:
+        info:
+          title: !Ref "AWS::StackName"
+          version: "1.0"
+        openapi: "3.0"
+        paths:
+          /:
+            x-amazon-apigateway-any-method:
+              responses:
+                {}
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations"
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              responses:
+                {}
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations"
+      StageName: Prod
+
+  Function:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      CodeUri: echo.py
+      Events:
+        Base:
+          Type: Api
+          Properties:
+            Method: any
+            Path: /
+            RestApiId: !Ref Api
+        Others:
+          Type: Api
+          Properties:
+            Method: any
+            Path: /{proxy+}
+            RestApiId: !Ref Api
+      Handler: echo.handler
+      Runtime: python3.6
+
+Outputs:
+  Endpoint:
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
